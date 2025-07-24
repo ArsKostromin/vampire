@@ -1,57 +1,61 @@
 import pytest
-from httpx import AsyncClient, ASGITransport
-from app.main import app
-import logging
+from httpx import AsyncClient
+from uuid import UUID
 
-logger = logging.getLogger("test")
-
-@pytest.mark.asyncio
-async def test_register_and_login():
-    async with AsyncClient(base_url="http://test", transport=ASGITransport(app=app)) as ac:
-        # Регистрация
-        resp = await ac.post("/users/register", json={"name": "testuser", "password": "testpass"})
-        if resp.status_code != 201:
-            logger.error("/users/register response: %s", resp.text)
-            try:
-                logger.error("/users/register response (json): %s", resp.json())
-            except Exception:
-                pass
-        assert resp.status_code == 201
-        user = resp.json()
-        assert user["name"] == "testuser"
-        # Логин
-        resp = await ac.post("/users/login", json={"name": "testuser", "password": "testpass"})
-        assert resp.status_code == 200
-        tokens = resp.json()
-        assert "access_token" in tokens
-        assert "refresh_token" in tokens
-        access_token = tokens["access_token"]
-        # Получение информации о себе
-        resp = await ac.get("/users/me", headers={"Authorization": f"Bearer {access_token}"})
-        if resp.status_code != 200:
-            logger.error("/users/me response: %s", resp.text)
-            try:
-                logger.error("/users/me response (json): %s", resp.json())
-            except Exception:
-                pass
-        assert resp.status_code == 200
-        me = resp.json()
-        assert me["name"] == "testuser"
+USERNAME = "testuser"
+PASSWORD = "testpass123"
 
 @pytest.mark.asyncio
-async def test_leaderboard_and_update_record():
-    async with AsyncClient(base_url="http://test", transport=ASGITransport(app=app)) as ac:
-        # Логин
-        resp = await ac.post("/users/login", json={"name": "testuser", "password": "testpass"})
-        tokens = resp.json()
-        access_token = tokens["access_token"]
-        # Обновление рекорда
-        resp = await ac.patch("/users/record", json={"record": 42.0}, headers={"Authorization": f"Bearer {access_token}"})
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["new_record"] == 42.0
-        # Лидерборд
-        resp = await ac.get("/users/leaderboard")
-        assert resp.status_code == 200
-        leaderboard = resp.json()
-        assert any(u["name"] == "testuser" for u in leaderboard) 
+async def test_register(client: AsyncClient):
+    response = await client.post("/register", json={"name": USERNAME, "password": PASSWORD})
+    assert response.status_code == 201
+    data = response.json()
+    assert "id" in data and "name" in data
+    assert data["name"] == USERNAME
+    assert UUID(data["id"])  # проверка что это UUID
+
+@pytest.mark.asyncio
+async def test_login(client: AsyncClient):
+    response = await client.post("/login", json={"name": USERNAME, "password": PASSWORD})
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data and "refresh_token" in data
+    assert data["token_type"] == "bearer"
+    global ACCESS_TOKEN, REFRESH_TOKEN
+    ACCESS_TOKEN = data["access_token"]
+    REFRESH_TOKEN = data["refresh_token"]
+
+@pytest.mark.asyncio
+async def test_get_me(client: AsyncClient):
+    headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
+    response = await client.get("/me", headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == USERNAME
+    assert isinstance(data["record"], float)
+
+@pytest.mark.asyncio
+async def test_update_record(client: AsyncClient):
+    headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
+    response = await client.patch("/record", headers=headers, json={"record": 123.45})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["old_record"] <= data["new_record"]
+    assert data["new_record"] == 123.45
+
+@pytest.mark.asyncio
+async def test_refresh_token(client: AsyncClient):
+    response = await client.post("/refresh", json={"refresh_token": REFRESH_TOKEN})
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert "refresh_token" in data
+    assert data["token_type"] == "bearer"
+
+@pytest.mark.asyncio
+async def test_leaderboard(client: AsyncClient):
+    response = await client.get("/leaderboard")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert any(user["name"] == USERNAME for user in data)

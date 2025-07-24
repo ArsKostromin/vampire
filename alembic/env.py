@@ -4,7 +4,8 @@ from alembic import context
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from app.models import user  # импортируем модели
+from app.models import user, audit  # импортируем обе модели
+from sqlalchemy import MetaData
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -14,7 +15,14 @@ config = context.config
 # This line sets up loggers basically.
 fileConfig(config.config_file_name)
 
-target_metadata = user.Base.metadata
+# Объединяем metadata обеих моделей
+metadata = MetaData()
+for m in [user.Base.metadata, audit.Base.metadata]:
+    for t in m.tables.values():
+        if t.name not in metadata.tables:
+            t.tometadata(metadata)
+
+target_metadata = metadata
 
 # Получаем строку подключения из переменной окружения или alembic.ini
 sqlalchemy_url = os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url")

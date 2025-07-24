@@ -15,14 +15,14 @@ services:
     networks:
       - backend
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U api_user"]
+      test: ["CMD-SHELL", "pg_isready -U api_user -d vampire_db"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   app:
     build: .
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     volumes:
       - .:/app
     ports:

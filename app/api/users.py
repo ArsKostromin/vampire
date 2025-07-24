@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from app.db.session import AsyncSessionLocal
+from app.db.session import get_db
 from app.models.user import User
 from passlib.context import CryptContext
 import uuid
@@ -14,10 +14,6 @@ from typing import List
 router = APIRouter()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-async def get_db():
-    async with AsyncSessionLocal() as session:
-        yield session
 
 class UserRegisterRequest(BaseModel):
     name: str

@@ -14,7 +14,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 2. Триггеры на users
+-- 2. Триггеры на users (создавать должен только server_admin)
 DROP TRIGGER IF EXISTS trg_log_user_insert ON users;
 CREATE TRIGGER trg_log_user_insert
 AFTER INSERT ON users

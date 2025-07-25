@@ -6,7 +6,7 @@ services:
     restart: always
     environment:
       POSTGRES_DB: vampire_db
-      POSTGRES_USER: server_admin
+      POSTGRES_USER: api_user
       POSTGRES_PASSWORD: password
     ports:
       - "5432:5432"
@@ -15,7 +15,7 @@ services:
     networks:
       - backend
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U server_admin -d vampire_db"]
+      test: ["CMD-SHELL", "pg_isready -U api_user -d vampire_db"]
       interval: 10s
       timeout: 5s
       retries: 5

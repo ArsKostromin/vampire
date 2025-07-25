@@ -27,9 +27,8 @@ services:
       - .:/app
     ports:
       - "8000:8000"
-    environment:
-      DATABASE_URL: postgresql://api_user:password@db:5432/vampire_db
-      SECRET_KEY: supersecret
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy
@@ -39,9 +38,8 @@ services:
   test:
     build: .
     command: pytest tests/
-    environment:
-      DATABASE_URL: postgresql://api_user:password@db:5432/vampire_db
-      SECRET_KEY: supersecret
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy

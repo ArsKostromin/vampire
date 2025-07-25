@@ -50,6 +50,10 @@ class UpdateRecordResponse(BaseModel):
     old_record: float
     new_record: float
 
+class LeaderboardResponse(BaseModel):
+    leaderboard: List[LeaderboardUser]
+    position: int
+
 
 # ----------- ENDPOINTS -----------
 
@@ -102,11 +106,17 @@ async def refresh_token(request: TokenRefreshRequest):
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
-@router.get("/leaderboard", response_model=List[LeaderboardUser])
-async def get_leaderboard(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).order_by(desc(User.record)).limit(10))
+@router.get("/leaderboard", response_model=LeaderboardResponse)
+async def get_leaderboard(
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(auth.get_current_user),
+):
+    result = await db.execute(select(User).order_by(desc(User.record)))
     users = result.scalars().all()
-    return [LeaderboardUser(id=u.id, name=u.name, record=u.record) for u in users]
+    leaderboard = [LeaderboardUser(id=u.id, name=u.name, record=u.record) for u in users]
+    # Найти позицию текущего пользователя (индекс + 1)
+    position = next((i + 1 for i, u in enumerate(users) if u.id == current_user.id), None)
+    return LeaderboardResponse(leaderboard=leaderboard, position=position)
 
 
 @router.patch("/record", response_model=UpdateRecordResponse)

@@ -63,6 +63,18 @@ services:
     networks:
       - backend
 
+  promtail:
+    image: grafana/promtail:2.9.4
+    volumes:
+      - ./promtail-config.yaml:/etc/promtail/config.yaml
+      - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers
+      - /etc/hostname:/etc/hostname
+      - /etc/localtime:/etc/localtime:ro
+    command: -config.file=/etc/promtail/config.yaml
+    networks:
+      - backend
+
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
     environment:
@@ -88,4 +100,4 @@ volumes:
 
 networks:
   backend:
-    driver: bridge 
+    driver: bridge

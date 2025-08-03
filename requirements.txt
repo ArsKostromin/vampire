@@ -13,3 +13,4 @@ pytest-asyncio
 pydantic-settings
 asyncpg 
 python-json-logger
+elasticsearch==8.13.0

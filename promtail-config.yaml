@@ -1,4 +1,3 @@
-# promtail-config.yaml
 server:
   http_listen_port: 9080
   grpc_listen_port: 0
@@ -15,5 +14,5 @@ scrape_configs:
       - targets:
           - localhost
         labels:
-          job: app_logs
+          job: docker
           __path__: /var/lib/docker/containers/*/*.log

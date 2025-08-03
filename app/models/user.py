@@ -12,3 +12,4 @@ class User(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
     name = Column(String, unique=True, index=True, nullable=False)
     record = Column(Float, default=0.0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

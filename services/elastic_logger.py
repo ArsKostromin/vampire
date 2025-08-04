@@ -43,7 +43,7 @@ def push_logs_to_elasticsearch():
         }
 
         # Отправка в Elastic
-        es.index(index="audit_logs", document=log_doc)
+        es.index(index="audit_logs", id=str(log.id), document=log_doc)
 
     print(f"[OK] Uploaded {len(logs)} audit logs to Elasticsearch.")
 

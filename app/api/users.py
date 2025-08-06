@@ -7,6 +7,8 @@ from app.db.session import get_db
 from app.models.user import User
 from app.core import auth
 from app.models.user import User as UserModel
+from app.utils.logger_decorator import log_all, log_elastic_only
+
 from typing import List
 import uuid
 
@@ -58,6 +60,7 @@ class LeaderboardResponse(BaseModel):
 # ----------- ENDPOINTS -----------
 
 @router.post("/register", response_model=UserRegisterResponse, status_code=status.HTTP_201_CREATED)
+@log_all
 async def register_user(request: UserRegisterRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.name == request.name))
     existing = result.scalar_one_or_none()
@@ -72,6 +75,7 @@ async def register_user(request: UserRegisterRequest, db: AsyncSession = Depends
 
 
 @router.post("/login", response_model=TokenResponse)
+@log_elastic_only
 async def login_user(request: UserLoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.name == request.name))
     user = result.scalar_one_or_none()
@@ -83,11 +87,13 @@ async def login_user(request: UserLoginRequest, db: AsyncSession = Depends(get_d
 
 
 @router.get("/me", response_model=UserMeResponse)
+@log_elastic_only
 async def get_me(current_user: UserModel = Depends(auth.get_current_user)):
     return UserMeResponse(id=current_user.id, name=current_user.name, record=current_user.record)
 
 
 @router.post("/refresh", response_model=TokenResponse)
+@log_elastic_only
 async def refresh_token(request: TokenRefreshRequest):
     from jose import JWTError, jwt
     from app.core.config import settings
@@ -120,6 +126,7 @@ async def get_leaderboard(
 
 
 @router.patch("/record", response_model=UpdateRecordResponse)
+@log_all
 async def update_record(
     request: UpdateRecordRequest,
     current_user: UserModel = Depends(auth.get_current_user),

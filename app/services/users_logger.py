@@ -7,40 +7,47 @@ import os
 ES_HOST = os.getenv("ELASTIC_HOST", "http://localhost:9200")
 DB_URL = os.getenv("DATABASE_URL", "postgresql://api_user:password@db:5432/vampire_db")
 
-# Подключения
+# Инициализация клиентов
 es = Elasticsearch(
-    "http://elasticsearch:9200",
-    headers={"Accept": "application/vnd.elasticsearch+json; compatible-with=8",
-             "Content-Type": "application/vnd.elasticsearch+json; compatible-with=8"}
+    ES_HOST,
+    headers={
+        "Accept": "application/vnd.elasticsearch+json; compatible-with=8",
+        "Content-Type": "application/vnd.elasticsearch+json; compatible-with=8"
+    }
 )
 engine = create_engine(DB_URL)
+
+# Храним ID'шник последнего отправленного юзера
+last_uploaded_user_ids = set()
 
 def fetch_users(limit=100):
     with engine.connect() as conn:
         result = conn.execute(text("""
             SELECT id, name, record, created_at
             FROM users
-            ORDER BY name
+            ORDER BY created_at DESC
             LIMIT :limit
         """), {"limit": limit})
         return result.fetchall()
 
-def push_users_to_elasticsearch():
+def log_user_action(request=None, response=None, user=None):
+    global last_uploaded_user_ids
+
     users = fetch_users()
 
-    for user in users:
+    new_users = [u for u in users if str(u.id) not in last_uploaded_user_ids]
+
+    for user in new_users:
         doc = {
             "id": str(user.id),
             "name": user.name,
             "record": float(user.record),
-            "created_at": user.created_at.isoformat(), 
-            "timestamp": datetime.utcnow().isoformat()
+            "created_at": user.created_at.isoformat(),
+            "logged_at": datetime.utcnow().isoformat()
         }
 
-        # Отправка в Elastic
         es.index(index="users_data", id=str(user.id), document=doc)
+        last_uploaded_user_ids.add(str(user.id))
 
-    print(f"[OK] Uploaded {len(users)} users to Elasticsearch.")
-
-if __name__ == "__main__":
-    push_users_to_elasticsearch()
+    if new_users:
+        print(f"[UserLogger] Uploaded {len(new_users)} new users.")

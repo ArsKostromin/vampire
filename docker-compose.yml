@@ -17,6 +17,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
 
   app:
     build: .
@@ -32,6 +37,11 @@ services:
         condition: service_healthy
     networks:
       - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 512M
 
   test:
     build: .
@@ -43,6 +53,11 @@ services:
         condition: service_healthy
     networks:
       - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
 
   loki:
     image: grafana/loki:2.9.4
@@ -51,6 +66,11 @@ services:
     command: -config.file=/etc/loki/local-config.yaml
     networks:
       - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
 
   grafana:
     image: grafana/grafana:10.4.2
@@ -60,6 +80,11 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     networks:
       - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
 
   promtail:
     image: grafana/promtail:2.9.4
@@ -72,6 +97,11 @@ services:
     command: -config.file=/etc/promtail/config.yaml
     networks:
       - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
@@ -83,6 +113,11 @@ services:
       - "9200:9200"
     networks:
       - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '1.00'
+          memory: 1G
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.13.4
@@ -92,6 +127,11 @@ services:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     networks:
       - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
 
 volumes:
   postgres_data:

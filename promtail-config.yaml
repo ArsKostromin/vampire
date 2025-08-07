@@ -16,12 +16,3 @@ scrape_configs:
         labels:
           job: docker
           __path__: /var/lib/docker/containers/*/*.log
-    pipeline_stages:
-      - json:
-          expressions:
-            time: time
-            level: level
-            msg: log
-      - timestamp:
-          source: time
-          format: RFC3339

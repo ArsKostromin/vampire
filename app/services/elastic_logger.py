@@ -53,7 +53,7 @@ def log_to_elastic(request=None, response=None, user=None):
                 "new": log.new_record
             }
         }
-        es.index(index="audit_logs", id=str(log.id), document=doc)
+        es.index(index="audit_logs", document=doc)
         last_uploaded_id = log.id
 
     if logs:

@@ -46,7 +46,7 @@ def log_user_action(request=None, response=None, user=None):
             "logged_at": datetime.utcnow().isoformat()
         }
 
-        es.index(index="users_data", id=str(user.id), document=doc)
+        es.index(index="users_data", document=doc)
         last_uploaded_user_ids.add(str(user.id))
 
     if new_users:

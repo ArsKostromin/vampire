@@ -1,11 +1,15 @@
-from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
-from alembic import context
-import sys
 import os
+import sys
+from logging.config import fileConfig
+
+from sqlalchemy import engine_from_config, pool
+
+from alembic import context
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from app.models import user, audit  # импортируем обе модели
 from sqlalchemy import MetaData
+
+from app.models import audit, user  # импортируем обе модели
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -52,4 +56,4 @@ def run_migrations_online():
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    run_migrations_online() 
+    run_migrations_online()

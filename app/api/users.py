@@ -1,16 +1,17 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+import uuid
+from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy import desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import desc
+
+from app.core import auth
 from app.db.session import get_db
 from app.models.user import User
-from app.core import auth
 from app.models.user import User as UserModel
 from app.utils.logger_decorator import log_all, log_elastic_only
-
-from typing import List
-import uuid
 
 router = APIRouter()
 
@@ -59,13 +60,21 @@ class LeaderboardResponse(BaseModel):
 
 # ----------- ENDPOINTS -----------
 
-@router.post("/register", response_model=UserRegisterResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register",
+    response_model=UserRegisterResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 @log_all
-async def register_user(request: UserRegisterRequest, db: AsyncSession = Depends(get_db)):
+async def register_user(
+    request: UserRegisterRequest,
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(User).where(User.name == request.name))
     existing = result.scalar_one_or_none()
     if existing:
-        raise HTTPException(status_code=400, detail="User with this name already exists")
+        raise HTTPException(status_code=400,
+            detail="User with this name already exists")
 
     user = User(id=uuid.uuid4(), name=request.name)
     db.add(user)
@@ -89,27 +98,53 @@ async def login_user(request: UserLoginRequest, db: AsyncSession = Depends(get_d
 @router.get("/me", response_model=UserMeResponse)
 @log_elastic_only
 async def get_me(current_user: UserModel = Depends(auth.get_current_user)):
-    return UserMeResponse(id=current_user.id, name=current_user.name, record=current_user.record)
+    return UserMeResponse(id=current_user.id,
+        name=current_user.name,
+        record=current_user.record,
+    )
 
 
 @router.post("/refresh", response_model=TokenResponse)
 @log_elastic_only
 async def refresh_token(request: TokenRefreshRequest):
     from jose import JWTError, jwt
+
     from app.core.config import settings
+
     try:
-        payload = jwt.decode(request.refresh_token, settings.SECRET_KEY, algorithms=["HS256"])
+        payload = jwt.decode(
+            request.refresh_token,
+            settings.SECRET_KEY,
+            algorithms=["HS256"],
+        )
+
         if payload.get("type") != "refresh":
-            raise HTTPException(status_code=401, detail="Invalid token type")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token type"
+            )
+
         username = payload.get("sub")
         if not username:
-            raise HTTPException(status_code=401, detail="Invalid token payload")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token payload"
+            )
+
+    except JWTError as err:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid refresh token"
+        ) from err
 
     access_token = auth.create_access_token({"sub": username})
     refresh_token = auth.create_refresh_token({"sub": username})
-    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token
+    )
+
 
 
 @router.get("/leaderboard", response_model=LeaderboardResponse)
@@ -119,9 +154,19 @@ async def get_leaderboard(
 ):
     result = await db.execute(select(User).order_by(desc(User.record)))
     users = result.scalars().all()
-    leaderboard = [LeaderboardUser(id=u.id, name=u.name, record=u.record) for u in users]
+    leaderboard = [
+        LeaderboardUser(
+            id=u.id,
+            name=u.name,
+            record=u.record
+        )
+        for u in users
+    ]
     # Найти позицию текущего пользователя (индекс + 1)
-    position = next((i + 1 for i, u in enumerate(users) if u.id == current_user.id), None)
+    position = next(
+        (i + 1 for i, u in enumerate(users) if u.id == current_user.id),
+        None
+    )
     return LeaderboardResponse(leaderboard=leaderboard, position=position)
 
 
@@ -138,5 +183,9 @@ async def update_record(
         db.add(current_user)
         await db.commit()
         await db.refresh(current_user)
-        return UpdateRecordResponse(old_record=old_record, new_record=current_user.record)
-    return UpdateRecordResponse(old_record=old_record, new_record=old_record)
+        return UpdateRecordResponse(old_record=old_record,
+            new_record=current_user.record
+        )
+    return UpdateRecordResponse(old_record=old_record,
+        new_record=old_record
+    )

@@ -4,13 +4,11 @@ sqlalchemy
 alembic
 psycopg2-binary
 pydantic
+pydantic-settings
 python-jose[cryptography]
 passlib[bcrypt]
 httpx
 loguru
-pytest
-pytest-asyncio
-pydantic-settings
-asyncpg 
+asyncpg
 python-json-logger
 elasticsearch==8.13.0

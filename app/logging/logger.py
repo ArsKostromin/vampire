@@ -1,7 +1,9 @@
-from loguru import logger
-import sys
-import requests
 import json
+import sys
+
+import requests
+from loguru import logger
+
 
 class LokiHandler:
     def __init__(self, loki_url):
@@ -34,5 +36,5 @@ logger.remove()
 logger.add(sys.stdout, level="INFO")
 logger.add(LokiHandler("http://loki:3100/loki/api/v1/push"), level="INFO")
 
- 
-# TODO: интеграция с Grafana/Loki/Elasticsearch 
+
+# TODO: интеграция с Grafana/Loki/Elasticsearch

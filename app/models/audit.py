@@ -1,7 +1,7 @@
-from sqlalchemy import Column, Integer, Text, DateTime
-from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy.sql import func
+from sqlalchemy import Column, DateTime, Integer, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.sql import func
 
 Base = declarative_base()
 
@@ -15,4 +15,4 @@ class AuditLog(Base):
     old_record = Column(JSONB)
     new_record = Column(JSONB)
     event_time = Column(DateTime(timezone=True), server_default=func.now())
-    extra = Column(Text) 
+    extra = Column(Text)

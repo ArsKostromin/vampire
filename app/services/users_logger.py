@@ -1,7 +1,9 @@
-from elasticsearch import Elasticsearch, exceptions as es_exceptions
-from sqlalchemy import create_engine, text
-from datetime import datetime
 import os
+from datetime import datetime
+
+from elasticsearch import Elasticsearch
+from elasticsearch import exceptions as es_exceptions
+from sqlalchemy import create_engine, text
 
 # Настройки из .env
 ES_HOST = os.getenv("ELASTIC_HOST", "http://localhost:9200")

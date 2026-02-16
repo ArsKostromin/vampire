@@ -1,6 +1,7 @@
 from functools import wraps
-from app.services.users_logger import log_user_action
+
 from app.services.elastic_logger import log_to_elastic
+from app.services.users_logger import log_user_action
 
 
 def log_all(func):

@@ -1,7 +1,8 @@
-from elasticsearch import Elasticsearch, exceptions as es_exceptions
-from sqlalchemy import create_engine, text
-from datetime import datetime
 import os
+
+from elasticsearch import Elasticsearch
+from elasticsearch import exceptions as es_exceptions
+from sqlalchemy import create_engine, text
 
 ES_HOST = os.getenv("ELASTIC_HOST", "http://localhost:9200")
 DB_URL = os.getenv("DATABASE_URL", "postgresql://api_user:password@db:5432/vampire_db")

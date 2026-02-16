@@ -5,9 +5,10 @@ Revises:
 Create Date: 2025-07-24 18:48:22.672241
 
 """
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '8f6db33404fa'
@@ -44,4 +45,4 @@ def downgrade():
     op.drop_index(op.f('ix_users_name'), table_name='users')
     op.drop_table('users')
     op.drop_table('audit_log')
-    # ### end Alembic commands ### 
+    # ### end Alembic commands ###

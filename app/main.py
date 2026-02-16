@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from app.api import users
+from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
+from fastapi.security import HTTPBearer
+
+from app.api import users
 
 app = FastAPI()
 

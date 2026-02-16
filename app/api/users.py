@@ -1,64 +1,31 @@
-import uuid
-from typing import List
-
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
-from sqlalchemy import desc
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 from app.core import auth
 from app.db.session import get_db
-from app.models.user import User
 from app.models.user import User as UserModel
+from app.schemas.users import (
+    LeaderboardResponse,
+    TokenRefreshRequest,
+    TokenResponse,
+    UpdateRecordRequest,
+    UpdateRecordResponse,
+    UserLoginRequest,
+    UserMeResponse,
+    UserRegisterRequest,
+    UserRegisterResponse,
+)
+from app.services.users import (
+    get_leaderboard_service,
+    get_me_service,
+    login_user_service,
+    refresh_token_service,
+    register_user_service,
+    update_record_service,
+)
 from app.utils.logger_decorator import log_all, log_elastic_only
 
 router = APIRouter()
-
-
-# ----------- SCHEMAS -----------
-
-class UserRegisterRequest(BaseModel):
-    name: str
-
-class UserRegisterResponse(BaseModel):
-    id: uuid.UUID
-    name: str
-
-class UserLoginRequest(BaseModel):
-    name: str
-
-class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-
-class UserMeResponse(BaseModel):
-    id: uuid.UUID
-    name: str
-    record: float
-
-class TokenRefreshRequest(BaseModel):
-    refresh_token: str
-
-class LeaderboardUser(BaseModel):
-    id: uuid.UUID
-    name: str
-    record: float
-
-class UpdateRecordRequest(BaseModel):
-    record: float
-
-class UpdateRecordResponse(BaseModel):
-    old_record: float
-    new_record: float
-
-class LeaderboardResponse(BaseModel):
-    leaderboard: List[LeaderboardUser]
-    position: int
-
-
-# ----------- ENDPOINTS -----------
 
 @router.post(
     "/register",
@@ -70,80 +37,40 @@ async def register_user(
     request: UserRegisterRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(User).where(User.name == request.name))
-    existing = result.scalar_one_or_none()
-    if existing:
-        raise HTTPException(status_code=400,
-            detail="User with this name already exists")
-
-    user = User(id=uuid.uuid4(), name=request.name)
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-    return UserRegisterResponse(id=user.id, name=user.name)
+    user_response = await register_user_service(request, db)
+    if user_response is None:
+        raise HTTPException(
+            status_code=400,
+            detail="User with this name already exists",
+        )
+    return user_response
 
 
 @router.post("/login", response_model=TokenResponse)
 @log_elastic_only
 async def login_user(request: UserLoginRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.name == request.name))
-    user = result.scalar_one_or_none()
-    if not user:
+    token_response = await login_user_service(request, db)
+    if token_response is None:
         raise HTTPException(status_code=401, detail="User not found")
-    access_token = auth.create_access_token({"sub": user.name})
-    refresh_token = auth.create_refresh_token({"sub": user.name})
-    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+    return token_response
 
 
 @router.get("/me", response_model=UserMeResponse)
 @log_elastic_only
 async def get_me(current_user: UserModel = Depends(auth.get_current_user)):
-    return UserMeResponse(id=current_user.id,
-        name=current_user.name,
-        record=current_user.record,
-    )
+    return await get_me_service(current_user)
 
 
 @router.post("/refresh", response_model=TokenResponse)
 @log_elastic_only
 async def refresh_token(request: TokenRefreshRequest):
-    from jose import JWTError, jwt
-
-    from app.core.config import settings
-
-    try:
-        payload = jwt.decode(
-            request.refresh_token,
-            settings.SECRET_KEY,
-            algorithms=["HS256"],
-        )
-
-        if payload.get("type") != "refresh":
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid token type"
-            )
-
-        username = payload.get("sub")
-        if not username:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid token payload"
-            )
-
-    except JWTError as err:
+    token_response = await refresh_token_service(request)
+    if token_response is None:
         raise HTTPException(
             status_code=401,
-            detail="Invalid refresh token"
-        ) from err
-
-    access_token = auth.create_access_token({"sub": username})
-    refresh_token = auth.create_refresh_token({"sub": username})
-
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token
-    )
+            detail="Invalid refresh token",
+        )
+    return token_response
 
 
 
@@ -152,22 +79,7 @@ async def get_leaderboard(
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(auth.get_current_user),
 ):
-    result = await db.execute(select(User).order_by(desc(User.record)))
-    users = result.scalars().all()
-    leaderboard = [
-        LeaderboardUser(
-            id=u.id,
-            name=u.name,
-            record=u.record
-        )
-        for u in users
-    ]
-    # Найти позицию текущего пользователя (индекс + 1)
-    position = next(
-        (i + 1 for i, u in enumerate(users) if u.id == current_user.id),
-        None
-    )
-    return LeaderboardResponse(leaderboard=leaderboard, position=position)
+    return await get_leaderboard_service(db, current_user)
 
 
 @router.patch("/record", response_model=UpdateRecordResponse)
@@ -177,15 +89,4 @@ async def update_record(
     current_user: UserModel = Depends(auth.get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    old_record = current_user.record
-    if request.record > old_record:
-        current_user.record = request.record
-        db.add(current_user)
-        await db.commit()
-        await db.refresh(current_user)
-        return UpdateRecordResponse(old_record=old_record,
-            new_record=current_user.record
-        )
-    return UpdateRecordResponse(old_record=old_record,
-        new_record=old_record
-    )
+    return await update_record_service(request, current_user, db)

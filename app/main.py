@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
-from fastapi.security import HTTPBearer
 
 from app.api import users
 
@@ -9,14 +8,19 @@ app = FastAPI()
 # Подключаем роутер
 app.include_router(users.router, prefix="/users", tags=["users"])
 
-# Простая защита для /docs через Bearer Token (без OAuth2 password flow)
-auth_scheme = HTTPBearer()
 
 @app.get("/")
 def root():
     return {"message": "Vampire API is running"}
 
-# Кастомизируем OpenAPI чтобы убрать OAuth2 PasswordBearer
+
+# Роуты, для которых в OpenAPI показывать Bearer (только защищённые)
+PROTECTED_OPENAPI = {
+    ("/users/me", "get"),
+    ("/users/leaderboard", "get"),
+    ("/users/record", "patch"),
+}
+
 
 def custom_openapi():
     if app.openapi_schema:
@@ -34,11 +38,13 @@ def custom_openapi():
             "bearerFormat": "JWT",
         }
     }
-    for path in openapi_schema["paths"].values():
-        for method in path.values():
-            if "security" not in method:
-                method["security"] = [{"BearerAuth": []}]
+    for path_key, path_obj in openapi_schema["paths"].items():
+        for method_key, method_spec in path_obj.items():
+            if method_key in ("get", "post", "put", "patch", "delete"):
+                if (path_key, method_key) in PROTECTED_OPENAPI:
+                    method_spec["security"] = [{"BearerAuth": []}]
     app.openapi_schema = openapi_schema
     return app.openapi_schema
+
 
 app.openapi = custom_openapi

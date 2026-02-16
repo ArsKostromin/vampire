@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -19,23 +20,45 @@ REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
 # OAuth2 схема (для /docs авторизации)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")
 
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
 # Создание access токена
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + (
+    expire = _utc_now() + (
         expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
+
 # Создание refresh токена
 def create_refresh_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + (
+    expire = _utc_now() + (
         expires_delta or timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     )
     to_encode.update({"exp": expire, "type": "refresh"})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+# Верификация refresh-токена: возвращает username (sub) или None
+def verify_refresh_token(token: str) -> Optional[str]:
+    try:
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+        )
+        if payload.get("type") != "refresh":
+            return None
+        username = payload.get("sub")
+        return str(username) if username else None
+    except JWTError:
+        return None
 
 # Получить текущего пользователя по токену
 async def get_current_user(

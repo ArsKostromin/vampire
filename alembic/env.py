@@ -1,6 +1,7 @@
 import os
 import sys
 from logging.config import fileConfig
+from app.models.base import Base
 
 from sqlalchemy import engine_from_config, pool
 
@@ -26,7 +27,7 @@ for m in [user.Base.metadata, audit.Base.metadata]:
         if t.name not in metadata.tables:
             t.tometadata(metadata)
 
-target_metadata = metadata
+target_metadata = Base.metadata
 
 # Получаем строку подключения из переменной окружения или alembic.ini
 sqlalchemy_url = os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
